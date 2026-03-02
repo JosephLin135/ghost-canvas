@@ -73,7 +73,7 @@ document.getElementById('optBtn').addEventListener('click', () => {
 
 // Test page
 document.getElementById('testBtn').addEventListener('click', () => {
-  chrome.tabs.create({ url: 'https://tabghost.vercel.app' });
+  chrome.tabs.create({ url: 'https://ghost-canvas-73m4.vercel.app' });
 });
 
 // Listen for ghost state changes from content script
