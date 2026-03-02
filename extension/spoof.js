@@ -1,14 +1,15 @@
 // spoof.js — MAIN world, document_start
-// Uses capture-phase stopImmediatePropagation for zero-latency blocking
+// Zero-latency blocking of ALL focus/visibility/blur/mouse-leave detection
 
 (function () {
-  // Read initial state immediately from a flag set by previous navigation
-  // (stored on window so it survives across same-tab navigations)
   let ghost = false;
 
-  const BLOCKED = ['visibilitychange', 'blur', 'focusout', 'pagehide'];
+  const BLOCKED = ['visibilitychange', 'blur', 'focusout', 'pagehide', 'mouseleave', 'mouseout'];
+  // We do NOT block 'focus' from firing — we just neutralize what sites do with it
+  // But we DO want to suppress focus-return tracking, so we suppress 'focus' on window too
+  const BLOCKED_WIN = ['blur', 'focusout', 'pagehide', 'mouseleave', 'mouseout', 'focus'];
 
-  // ── 1. Override Document.prototype properties ─────────────────────────────
+  // ── 1. Override Document.prototype ───────────────────────────────────────
   const proto = Document.prototype;
   const origHidden = Object.getOwnPropertyDescriptor(proto, 'hidden');
   const origVis    = Object.getOwnPropertyDescriptor(proto, 'visibilityState');
@@ -22,60 +23,85 @@
     configurable: true,
   });
 
-  // ── 2. Capture-phase blocker — registered FIRST, blocks all other handlers ─
+  // ── 2. Capture-phase blockers — registered FIRST before any page code ────
   function captureBlock(e) {
-    if (ghost) {
-      e.stopImmediatePropagation();
-      e.preventDefault();
-    }
+    if (!ghost) return;
+    e.stopImmediatePropagation();
+    e.preventDefault();
   }
 
+  // Block on document
   BLOCKED.forEach(type => {
     document.addEventListener(type, captureBlock, { capture: true, passive: false });
+  });
+
+  // Block on window (includes focus to hide return-from-elsewhere detection)
+  BLOCKED_WIN.forEach(type => {
     window.addEventListener(type, captureBlock, { capture: true, passive: false });
   });
 
-  // ── 3. Wrap addEventListener to suppress registration when ghost is on ────
+  // ── 3. Wrap addEventListener — drop blocked registrations when ghost on ──
   const _origAdd = EventTarget.prototype.addEventListener;
   EventTarget.prototype.addEventListener = function (type, fn, opts) {
-    if (ghost && BLOCKED.includes(type)) return; // drop silently
+    const allBlocked = [...new Set([...BLOCKED, ...BLOCKED_WIN])];
+    if (ghost && allBlocked.includes(type)) return;
     return _origAdd.call(this, type, fn, opts);
   };
 
   // ── 4. Suppress dispatchEvent ─────────────────────────────────────────────
   const _origDispatch = EventTarget.prototype.dispatchEvent;
   EventTarget.prototype.dispatchEvent = function (evt) {
-    if (ghost && BLOCKED.includes(evt.type)) return true;
+    const allBlocked = [...new Set([...BLOCKED, ...BLOCKED_WIN])];
+    if (ghost && allBlocked.includes(evt.type)) return true;
     return _origDispatch.call(this, evt);
   };
 
-  // ── 5. Suppress property setters ─────────────────────────────────────────
-  ['onvisibilitychange', 'onpagehide'].forEach(prop => {
-    Object.defineProperty(document, prop, {
-      get() { return null; },
-      set(fn) { if (!ghost) _origAdd.call(document, prop.slice(2), fn); },
-      configurable: true,
-    });
+  // ── 5. Suppress all property-based event setters ─────────────────────────
+  const allProps = ['onvisibilitychange', 'onpagehide', 'onblur', 'onfocusout', 'onmouseleave', 'onmouseout'];
+  allProps.forEach(prop => {
+    try {
+      Object.defineProperty(document, prop, {
+        get() { return null; },
+        set(fn) { if (!ghost) _origAdd.call(document, prop.slice(2), fn); },
+        configurable: true,
+      });
+    } catch(e) {}
   });
-  Object.defineProperty(window, 'onblur', {
-    get() { return null; },
-    set(fn) { if (!ghost) _origAdd.call(window, 'blur', fn); },
-    configurable: true,
+  ['onblur', 'onfocus', 'onmouseleave', 'onmouseout', 'onfocusout'].forEach(prop => {
+    try {
+      Object.defineProperty(window, prop, {
+        get() { return null; },
+        set(fn) { if (!ghost) _origAdd.call(window, prop.slice(2), fn); },
+        configurable: true,
+      });
+    } catch(e) {}
   });
 
-  // ── 6. Toggle handler from content.js ────────────────────────────────────
-  // Using a unique event name to avoid conflicts
+  // ── 6. Freeze document.hasFocus() — always return true when ghost on ─────
+  const origHasFocus = Document.prototype.hasFocus;
+  Document.prototype.hasFocus = function () {
+    if (ghost) return true;
+    return origHasFocus.call(this);
+  };
+
+  // ── 7. Intercept requestAnimationFrame throttling detection ──────────────
+  // Some sites detect tab switching via rAF slowdown (it throttles to 1fps when hidden)
+  // We keep rAF running at full speed
+  const _origRAF = window.requestAnimationFrame;
+  window.requestAnimationFrame = function(cb) {
+    if (ghost) {
+      // Use setTimeout at 16ms (60fps) to bypass browser throttling when tab is hidden
+      return setTimeout(() => cb(performance.now()), 16);
+    }
+    return _origRAF.call(window, cb);
+  };
+
+  // ── 8. Toggle from content.js via CustomEvent ────────────────────────────
   window.addEventListener('__tg_set__', (e) => {
     ghost = !!(e && e.detail && e.detail.on);
     window.__TG_ACTIVE__ = ghost;
-    // Broadcast back so test page can react
     window.dispatchEvent(new CustomEvent('__tg_status__', { detail: { on: ghost } }));
   });
-
-  // ── 7. Also intercept History API to prevent tab-hidden detection via nav ─
-  const _origPushState = history.pushState.bind(history);
-  const _origReplaceState = history.replaceState.bind(history);
-  // (just ensuring these still work normally — placeholder for future routing intercept)
 
   window.__TG_ACTIVE__ = false;
   window.__TG_READY__ = true;
