@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{width:240px;background:#0e0e1a;color:#ddd;font-family:'Segoe UI',system-ui,sans-serif;padding:16px}
+  .header{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  .logo{font-size:26px}
+  .title{font-size:15px;font-weight:900;color:#fff}
+  .ver{font-size:10px;color:#444;margin-top:1px}
+
+  .toggle-card{background:#161626;border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:14px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:border-color .2s}
+  .toggle-card:hover{border-color:rgba(140,90,255,0.4)}
+  .toggle-card.active{border-color:rgba(140,90,255,0.6);background:linear-gradient(135deg,#110d30,#1e1040)}
+  .tc-left .label{font-size:13px;font-weight:700;color:#fff}
+  .tc-left .sub{font-size:10px;color:#555;margin-top:2px}
+  .toggle-card.active .tc-left .sub{color:#9a7fd4}
+
+  /* pill toggle */
+  .pill{width:40px;height:22px;background:#2a2a3a;border-radius:999px;position:relative;transition:background .2s;flex-shrink:0}
+  .pill::after{content:'';position:absolute;width:16px;height:16px;background:#666;border-radius:50%;top:3px;left:3px;transition:transform .2s,background .2s}
+  .pill.on{background:#5b21b6}
+  .pill.on::after{transform:translateX(18px);background:#e8d8ff}
+
+  .status{text-align:center;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:6px;border-radius:6px;margin-bottom:10px}
+  .status.on{background:rgba(100,50,220,0.15);color:#a78bfa;border:1px solid rgba(100,50,220,0.3)}
+  .status.off{background:rgba(255,255,255,0.03);color:#444;border:1px solid rgba(255,255,255,0.05)}
+
+  .site-row{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:#161626;border:1px solid rgba(255,255,255,0.05);border-radius:8px;margin-bottom:10px;font-size:11px}
+  .site-row .host{color:#888;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px}
+  .site-row .host.autoenabled{color:#a78bfa}
+  .auto-btn{font-size:10px;font-weight:700;color:#555;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:4px;padding:3px 7px;cursor:pointer;white-space:nowrap;transition:all .2s}
+  .auto-btn:hover{color:#fff;border-color:rgba(140,90,255,0.5)}
+  .auto-btn.added{color:#a78bfa;border-color:rgba(140,90,255,0.5)}
+
+  .footer{display:flex;gap:6px}
+  .footer button{flex:1;padding:7px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.07);color:#777;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:.04em;transition:all .2s}
+  .footer button:hover{color:#fff;background:rgba(255,255,255,0.1)}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="logo">👻</div>
+  <div><div class="title">TabGhost</div><div class="ver">v2.0</div></div>
+</div>
+
+<div class="status off" id="statusBar">● Inactive</div>
+
+<div class="toggle-card" id="mainToggle">
+  <div class="tc-left">
+    <div class="label">Ghost Mode</div>
+    <div class="sub" id="mainSub">Websites can detect tab switches</div>
+  </div>
+  <div class="pill" id="mainPill"></div>
+</div>
+
+<div class="site-row">
+  <span class="host" id="hostLabel">—</span>
+  <button class="auto-btn" id="autoBtn">+ Auto-enable</button>
+</div>
+
+<div class="footer">
+  <button id="optBtn">⚙ Options</button>
+  <button id="testBtn">🧪 Test Page</button>
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>
